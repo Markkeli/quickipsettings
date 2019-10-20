@@ -92,7 +92,8 @@ namespace quickIpSettings
                 AdapterCanvas.HorizontalAlignment = HorizontalAlignment.Left;
                 AdapterCanvas.Name = "adapterData_" + adapterIndex;
 
-                Label adapterName = new Label();
+                //Label adapterName = new Label();
+                TextBlock adapterName = new TextBlock();
                 Label IPLabel = new Label();
                 Label netmaskLabel = new Label();
                 Label gatewayLabel = new Label();
@@ -186,8 +187,10 @@ namespace quickIpSettings
 
 
                 adapterName.Name = "adapter_" + adapterIndex;
-                adapterName.Content = adapter.Description;
+                adapterName.Text = adapter.Description;
                 adapterName.FontSize = 10;
+                adapterName.Width = 190;
+                adapterName.TextWrapping = TextWrapping.WrapWithOverflow;
 
                 IPLabel.Content = "IP:";
                 IPLabel.Margin = new Thickness(187, 0, 0, 0);
@@ -272,7 +275,7 @@ namespace quickIpSettings
             int index = Int32.Parse(btn.Name.Split('_').ElementAt(1));
 
             // The correct element is found by searching the hierarchy down iteratively
-            Label adapterLabel = VisualTreeHelpers.FindChild<Label>(AdapterStackPanel, ("adapter_" + index));
+            TextBlock adapterDescription = VisualTreeHelpers.FindChild<TextBlock>(AdapterStackPanel, ("adapter_" + index));
             TextBox AdapterIP = VisualTreeHelpers.FindChild<TextBox>(AdapterStackPanel, ("AdapterIP_" + index));
             TextBox AdapterNetmask = VisualTreeHelpers.FindChild<TextBox>(AdapterStackPanel, ("AdapterNetmask_" + index));
             TextBox AdapterGateway = VisualTreeHelpers.FindChild<TextBox>(AdapterStackPanel, ("AdapterGateway_" + index));
@@ -283,7 +286,7 @@ namespace quickIpSettings
 
             foreach ( ManagementObject adapter in adapterCollection )
             {
-                if ( String.Equals(adapter["Description"], adapterLabel.Content) )
+                if ( String.Equals(adapter["Description"], adapterDescription.Text) )
                 {
                     // Enable static IP settings or DHCP based on the checkbox selection
                     if ( DHCPselection.IsChecked == false )
@@ -299,6 +302,7 @@ namespace quickIpSettings
                             newGateway["GatewayCostMetric"] = new int[] { 1 };
                             adapter.InvokeMethod("SetGateways", newGateway, null); 
 
+                            // Then add the actual gateway
                             newGateway["DefaultIPGateway"] = new string[] { AdapterGateway.Text };
                             adapter.InvokeMethod("SetGateways", newGateway, null);
 
@@ -317,6 +321,13 @@ namespace quickIpSettings
                     {
                         try
                         {
+                            // Clear the gateway list before DHCP updates it so that
+                            // no unintended gateways remain in the list
+                            var newGateway = adapter.GetMethodParameters("SetGateways");
+                            newGateway["DefaultIPGateway"] = new string[] { };
+                            newGateway["GatewayCostMetric"] = new int[] { 1 };
+                            adapter.InvokeMethod("SetGateways", newGateway, null);
+
                             adapter.InvokeMethod("EnableDHCP", null);
                         }
                         catch (Exception ex)
@@ -329,7 +340,6 @@ namespace quickIpSettings
                     // Adapt the callback function to the ElapsedEventHandler format with a lambda expression
                     ApplyButtonTimer.Elapsed += (sender2, e2) => changeApplyButtonColor(sender2, e2, btn);
 
-                    // 
                     btn.Content = "Applied";
                     btn.FontSize = 10;
                     btn.Margin = new Thickness(680, 5, 0, 0);
